@@ -1,0 +1,93 @@
+hr {
+    height: 100%;
+}
+input {
+    text-align: center;
+    height: 25px;
+    border: 1px solid #000;
+    border-radius: 10px;
+}
+input:focus {
+    border-width: 2px;
+    outline: 0;
+}
+textarea {
+    padding: 6px;
+    resize: none;
+}
+textarea:focus {
+    border-width: 2px;
+    outline: 0;
+}
+button {
+    cursor: pointer;
+}
+button:focus {
+    outline: 0;
+}
+main button {
+    align-self: center;
+    height: 40px;
+    width: 100px;
+    margin-top: 10px;
+    border: 2px solid #000;
+    border-radius: 6px;
+    background: #fff;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 1rem;
+    font-weight: bold;
+    padding-bottom: 4px;
+
+    font-variant-caps: all-small-caps;
+}
+button:hover {
+    border-color: white;
+    background-color: black;
+    color: white;
+}
+button:disabled,
+button[disabled] {
+    border: 1px solid #999999;
+    background-color: #cccccc;
+    color: #666666;
+    cursor: not-allowed;
+}
+ul {
+    list-style-type: none;
+    color: white;
+    font-size: small;
+    display: flex;
+    justify-content: center;
+}
+ul li {
+    margin: 10px;
+    padding: 5px;
+    border: 2px solid #fff
+}
+canvas {
+    margin: 10px;
+    height: 10%;
+    min-height: 300px;
+    width: 10%;
+    min-width: 300px;
+    border: 2px solid #fff;
+    border-radius: 15px;
+}
+.hidden {
+    font-size: 0;
+}
+.blue {
+    cursor: pointer;
+    font-size:0.8rem;
+    color:white;
+    border: 1px solid red;
+    border-radius: 5px;
+    background: blue;
+    padding: 2px 5px;
+    vertical-align: middle;
+}
+.blue::first-letter {
+    font-size: 0.9rem;
+    border-right: 1px solid red;
+    padding-right: 5px;
+}

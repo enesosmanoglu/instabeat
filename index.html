@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InstaBeat</title>
+    <script>
+        const electron = require('electron');
+        const { ipcRenderer, dialog } = electron;
+        const fs = require('fs');
+    </script>
+    <link rel="stylesheet" href="./css/fonts.css">
+    <link rel="stylesheet" href="./css/global.css">
+    <link rel="stylesheet" href="./css/style.css">
+    <link rel="stylesheet" href="./css/font-awesome.css">
+</head>
+
+<body>
+    <div id="body">
+        <header style="-webkit-app-region: drag">
+            <h1 id="title"><span class="fa-stack">
+                    <i class="fa fa-headphones fa-stack-2x"></i>
+                    <i class="fa fa-instagram fa-stack-1x"></i>
+                </span>InstaBeat</h1>
+            <div class="buttons">
+                <button id="updateButton" onclick="ipcRenderer.send('update')"><i class="fa fa-download fa-fw"
+                        aria-hidden="true"></i> Güncelle</button>
+                <button id="loginButton" onclick="toggleLoginForm()"><i class="fa fa-sign-in fa-fw"
+                        aria-hidden="true"></i></button>
+                <button id="minimize" onclick="ipcRenderer.send('window_minimize')"><i
+                        class="fa fa-window-minimize fa-fw" aria-hidden="true"></i></button>
+                <button id="maximize" onclick="ipcRenderer.send('window_maximize')"><i class="fa fa-square-o fa-fw"
+                        aria-hidden="true"></i></button>
+                <button id="close" onclick="ipcRenderer.send('window_close')"><i class="fa fa-times fa-lg fa-fw"
+                        aria-hidden="true"></i></button>
+            </div>
+        </header>
+        <div id="contentStart"></div>
+
+        <div id="selectFile">
+            <h4 id="selectInfo">Ses dosyasını bırakabilirsin!</h4>
+        </div>
+
+        <main>
+            <section id="loginSection">
+                <div class="login">
+                    <label for="username">Kullanıcı adı:</label>
+                    <input type="text" name="Kullanıcı Adı" id="username" class="auth">
+                    <label for="password">Şifre:</label>
+                    <input type="password" name="Şifre" id="password" class="auth">
+                </div>
+                <div class="info">
+                    <div class="topInfo">
+                        <img id="i_pp" src="" alt="profile_pic">
+                        <h2 id="i_username"></h2>
+                    </div>
+                    <div class="otherInfo">
+                        <h2 id="i_name"></h2>
+                    </div>
+                </div>
+                <div class="autoLogin">
+                    <input type="checkbox" name="Otomatik Giriş" id="auto_login" class="auth">
+                    <label for="auto_login">Açılışta otomatik giriş yap.</label>
+                </div>
+                <button id="login" class="auth" onclick="login();">GİRİŞ YAP</button>
+            </section>
+            <div class="rightSide">
+                <section id="videoSection">
+                    <label for="beat_no">Beat Numarası:</label>
+                    <input type="number" name="Beat Numarası" id="beat_no">
+                    <label for="beat_type">Beat Türü:</label>
+                    <input type="text" name="Beat Türü" id="beat_type">
+                    <div class="mp3Path">
+                        <label for="mp3_path">Ses Dosyası:</label>
+                        <div>
+                            <button id="mp3_path_select" onclick="ipcRenderer.send('selectFile');">SEÇ</button>
+                            <input type="text" name="Ses Dosyası" id="mp3_path">
+                        </div>
+                    </div>
+                    <label for="caption">Video Açıklaması:</label>
+                    <div id="caption" name="Video Açıklaması" contenteditable="true" optional></div>
+                    <div class="videoButtons">
+                        <button hidden id="picture" onclick="getPic()">RESİM</button>
+                        <button id="send" onclick="sendData();">GÖNDER</button>
+                        <button hidden id="cancel" onclick="cancel()">İPTAL</button>
+                    </div>
+                </section>
+            </div>
+
+        </main>
+
+        <p id="alert">İşlem bekleniyor...</p>
+
+    </div>
+    <script>
+        let title = document.querySelector('#title');
+        loadJSON("./package.json", (package) => {
+            let version = package.version;
+            title.innerHTML += " v" + version
+        })
+
+        function loadJSON(filePath, callback = () => { }) {
+            return new Promise((resolve, reject) => {
+                let xobj = new XMLHttpRequest();
+                xobj.overrideMimeType("application/json");
+                xobj.open('GET', filePath, true);
+                xobj.onreadystatechange = () => {
+                    if (xobj.readyState == 4 && xobj.status == "200") {
+                        callback(JSON.parse(xobj.responseText));
+                        resolve(JSON.parse(xobj.responseText));
+                    } else if (xobj.status == "404") {
+                        reject("NOT FOUND")
+                    }
+                };
+                xobj.send(null)
+            })
+        }
+    </script>
+    <script src="js/functions.js"></script>
+    <script src="js/ipcRenderer.js"></script>
+    <script>
+        const auto_login = document.querySelector("#auto_login");
+        auto_login.addEventListener("click", (event) => {
+            if (event.target.checked)
+                fs.writeFileSync("auto_login", "")
+            else
+                fs.unlinkSync("auto_login")
+        })
+        if (fs.existsSync("auto_login")) {
+            auto_login.checked = true;
+            console.log("sa")
+            setTimeout(() => {
+                login()
+            }, 1000);
+        }
+    </script>
+    <script>
+        document.querySelector("#username").addEventListener("blur", getPic);
+        document.querySelector("#beat_no").addEventListener("blur", getPic);
+        document.querySelector("#beat_type").addEventListener("blur", getPic);
+
+        document.querySelector(".rightSide").addEventListener("click", hideLoginForm);
+
+        // HASHTAG COLORING
+        let caption = document.querySelector("#caption")
+        caption.addEventListener("focus", myFocusFunction, true);
+        caption.addEventListener("blur", myBlurFunction, true);
+        function myFocusFunction() {
+            // console.log(0, caption.innerHTML, caption.innerText)
+            // resetting colors
+            caption.innerText = caption.innerText;
+        }
+        function myBlurFunction() {
+            // console.log(1, caption.innerHTML, caption.innerText)
+            caption.innerHTML = caption.innerHTML.replace(/<div><br>/g, "<br>").replace(/<div>/g, "<br>").replace(/<\/div>/g, "")
+            if (caption.innerHTML.startsWith("<br>"))
+                caption.innerHTML = caption.innerHTML.replace("<br>", "")
+            // console.log(caption.innerHTML)
+            checkHashtags()
+        }
+    </script>
+    <script>
+        let dragFile = document.getElementById("body");
+        let selectFileContainer = document.querySelector('#selectFile');
+        let counter = 0;
+        dragFile.addEventListener('drop', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            console.log(e)
+
+            counter = 0;
+            selectFileContainer.style.display = "none";
+
+            for (let f of e.dataTransfer.files) {
+                console.log('The file(s) you dragged: ', f)
+                if (f.type.startsWith("audio")) {
+                    document.querySelector("#mp3_path").value = f.path
+                    sendAlert("Ses dosyası başarıyla eklendi!", { color: "green" })
+                } else {
+                    sendAlert("Lütfen ses dosyası bırakınız!", { color: "red" })
+                }
+            }
+        });
+        dragFile.addEventListener('dragenter', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            counter++;
+            selectFileContainer.style.display = "flex"
+        });
+        dragFile.addEventListener('dragleave', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            counter--;
+            if (counter == 0)
+                selectFileContainer.style.display = "none"
+        });
+        dragFile.addEventListener('dragover', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            selectFileContainer.style.display = "flex"
+        });
+    </script>
+    <script>
+        // document.querySelector("#caption").addEventListener("mousedown", (event) => {
+        //     if (event.target.classList.contains("blue")) {
+        //         event.preventDefault();
+        //         event.target.parentElement.outerHTML = ""
+        //     }
+        // })
+    </script>
+    <!-- Code injected by live-server -->
+    <!-- <script src="js/liveServer.js"></script> -->
+</body>
+
+</html>
