@@ -97,6 +97,22 @@ header .buttons button#close:hover {
     margin-bottom: 2rem;
 }
 
+#loading {
+    z-index: 10;
+    position: absolute;
+    background: rgba(0, 0, 0, 0.9);
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#loading #loadingInfo {
+    color:#fff;
+    font-size: 2rem;
+}
+
 #selectFile {
     z-index: 10;
     position: absolute;

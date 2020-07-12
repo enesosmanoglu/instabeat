@@ -1,9 +1,6 @@
-
-
 const { app, BrowserWindow, ipcMain, dialog, shell, ipcRenderer } = require('electron')
 const fs = require('fs')
 const https = require('https');
-const request = require('request');
 const videoshow = require('videoshow');
 const unzipper = require('unzipper');
 const { IgApiClient } = require('instagram-private-api');
@@ -13,12 +10,32 @@ const { promisify } = require('util');
 const readFileAsync = promisify(readFile);
 const ig = new IgApiClient();
 
-var auth = require("./auth");
-var videoOptions = require("./options");
+var auth = fs.existsSync("./auth.js") ? require("./auth") : { "IG_USERNAME": "", "IG_PASSWORD": "" };
+var videoOptions = {
+    // default options
+    fps: 30,
+    loop: 60, // seconds
+    transition: true,
+    transitionDuration: 1, // seconds
+    videoBitrate: 1024,
+    videoCodec: 'libx264',
+    size: '640x640',
+    audioBitrate: '256k',
+    audioChannels: 2,
+    format: 'mp4',
+    pixelFormat: 'yuv420p'
+};
+
+if (fs.existsSync("./videoOptions.js")) {
+    videoOptions = require("./videoOptions");
+} else {
+    fs.writeFileSync("./videoOptions.js", `module.exports = ${JSON.stringify(videoOptions, null, 2)}`)
+}
 
 let win;
 
-let updateUrl = "https://www.dropbox.com/s/i4q3wu7almbfpgb/update.zip?dl=1"
+let updateUrl = "https://codeload.github.com/enesosmanoglu/instabeat/zip/master"//"https://www.dropbox.com/s/i4q3wu7almbfpgb/update.zip?dl=1"
+let packageUrl = "https://raw.githubusercontent.com/enesosmanoglu/instabeat/master/package.json"
 
 function createWindow() {
     win = new BrowserWindow({
@@ -30,50 +47,49 @@ function createWindow() {
         frame: false,
         //transparent: true
     })
-    win.loadFile('index.html')
     // Open the DevTools.
     //win.webContents.openDevTools()
 
-    downloadFile(updateUrl, "./update.zip", async (err) => {
-        if (err) console.log(err)
-        await fs.createReadStream("./update.zip")
-            .pipe(unzipper.Parse())
-            .on('entry', function (entry) {
-                const fileName = entry.path;
-                const type = entry.type; // 'Directory' or 'File'
-                const size = entry.vars.uncompressedSize; // There is also compressedSize;
-                if (type == 'File' && fileName === "package.json") {
-                    entry.pipe(fs.createWriteStream('./updatePackage.json'));
-                } else {
-                    entry.autodrain();
-                }
-            })
-            .on('error', console.log)
-            .on('finish', () => {
-                console.log('finished')
-                let package = JSON.parse(fs.readFileSync('./package.json', { encoding: 'utf8' }));
-                let updatePackage = JSON.parse(fs.readFileSync('./updatePackage.json', { encoding: 'utf8' }));
+    win.loadFile('index.html')
+    downloadFile(packageUrl, "./package_last.json", async (err) => {
+        try {
+            if (err) {
+                win.webContents.send('loadingInfo', "Güncelleme kontrol edilemedi!")
+                win.webContents.send('loadingHide')
+                return console.log(err)
+            }
+            console.log('checking update...')
+            let package = JSON.parse(fs.readFileSync('./package.json', { encoding: 'utf8' }));
+            let updatePackage = JSON.parse(fs.readFileSync('./package_last.json', { encoding: 'utf8' }));
 
-                let version = package.version.split('.');
-                let updateVersion = updatePackage.version.split('.');
+            let version = package.version.split('.');
+            let updateVersion = updatePackage.version.split('.');
 
-                fs.unlinkSync("./updatePackage.json");
+            try {
+                fs.unlinkSync("./package_last.json");
+            } catch (error) {
 
-                if (updateVersion[0] > version[0]) {
+            }
+
+            if (updateVersion[0] > version[0]) {
+                return updateApp();
+            } else {
+                if (updateVersion[1] > version[1]) {
                     return updateApp();
                 } else {
-                    if (updateVersion[1] > version[1]) {
+                    if (updateVersion[2] > version[2]) {
                         return updateApp();
                     } else {
-                        if (updateVersion[2] > version[2]) {
-                            return updateApp();
-                        }
+                        win.webContents.send('loadingInfo', "Güncelleme bulunamadı!")
+                        console.log("Güncelleme bulunamadı!", version, updateVersion)
                     }
                 }
+            }
+        } catch (error) {
+            win.webContents.send('loadingInfo', "Güncelleme kontrol sırasında hata oldu!")
+        }
 
-                fs.unlinkSync("./update.zip");
-            })
-            .promise()
+        win.webContents.send('loadingHide')
     }, false);
 
     win.webContents.on("dom-ready", (event) => {
@@ -113,10 +129,7 @@ function createWindow() {
     })
 
     ipcMain.on("update", (event, data) => {
-        downloadFile(updateUrl, "./update.zip", async (err) => {
-            if (err) console.log(err)
-            updateApp();
-        })
+        updateApp();
     })
 
 }
@@ -138,17 +151,32 @@ function downloadFile(url, dest, cb, showAlert = true) {
                 response.on("data", function (chunk) {
                     body += chunk;
                     cur += chunk.length;
+                    win.setProgressBar(cur / len)
+
+                    let info = "İndiriliyor " + (100.0 * cur / len).toFixed(2) + "% " + (cur / 1048576).toFixed(2) + " mb\r" + ".<br/> Toplam boyut: " + total.toFixed(2) + " mb";
+
+                    win.webContents.send('loadingInfo', info)
                     if (showAlert)
-                        sendAlert("İndiriliyor " + (100.0 * cur / len).toFixed(2) + "% " + (cur / 1048576).toFixed(2) + " mb\r" + ".<br/> Toplam boyut: " + total.toFixed(2) + " mb", "yellow")
+                        sendAlert(info, "yellow")
                 });
                 response.on("end", function () {
+                    win.setProgressBar(-1)
+
+                    let info = "İndirme tamamlandı.";
+
+                    win.webContents.send('loadingInfo', info)
                     if (showAlert)
-                        sendAlert("İndirme tamamlandı.", "green")
+                        sendAlert(info, "green")
                 });
                 response.on("error", function (e) {
+                    win.setProgressBar(cur / len, { mode: "error" })
                     console.log("Error: " + e.message);
+
+                    let info = "Hata: " + e.message;
+
+                    win.webContents.send('loadingInfo', info)
                     if (showAlert)
-                        sendAlert("Hata: " + e.message, "red")
+                        sendAlert(info, "red")
                 });
 
                 response.pipe(file);
@@ -164,16 +192,19 @@ function downloadFile(url, dest, cb, showAlert = true) {
     request(url);
 };
 async function updateApp() {
-    await fs.createReadStream("./update.zip")
-        .pipe(unzipper.Extract({ path: './' }))
-        .on('error', console.log)
-        .on('finish', () => {
-            console.log('finished')
-            fs.unlinkSync("./update.zip");
-            app.relaunch()
-            app.exit()
-        })
-        .promise()
+    downloadFile(updateUrl, "./update.zip", async (err) => {
+        if (err) return console.log(err)
+        await fs.createReadStream("./update.zip")
+            .pipe(unzipper.Extract({ path: './' }))
+            .on('error', console.log)
+            .on('finish', () => {
+                console.log('finished')
+                fs.unlinkSync("./update.zip");
+                app.relaunch()
+                app.exit()
+            })
+            .promise()
+    })
 }
 
 // This method will be called when Electron has finished
@@ -273,7 +304,7 @@ ipcMain.on('login', async (event, data) => {
     if (auth.IG_USERNAME != data.username || auth.IG_PASSWORD != data.password) {
         auth.IG_USERNAME = data.username;
         auth.IG_PASSWORD = data.password;
-        fs.writeFileSync("./auth.js", `module.exports = ${JSON.stringify(auth)}`)
+        fs.writeFileSync("./auth.js", `module.exports = ${JSON.stringify(auth, null, 2)}`)
     }
     await login();
 })

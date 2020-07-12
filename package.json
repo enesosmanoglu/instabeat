@@ -1,6 +1,6 @@
 {
   "name": "instabeat",
-  "version": "1.4.2",
+  "version": "1.4.3",
   "description": "Beatleri video haline getirip Instagram'a paylaşır.",
   "main": "main.js",
   "scripts": {

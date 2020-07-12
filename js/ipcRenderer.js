@@ -29,3 +29,15 @@ ipcRenderer.on("selectFile", (event, data) => {
         document.querySelector("#mp3_path").value = data.filePaths[0]
     }
 })
+ipcRenderer.on("loadingInfo", (event, data) => {
+    console.log(data)
+    document.querySelector("#loadingInfo").innerHTML = data;
+})
+ipcRenderer.on("loadingHide", (event, data) => {
+    setTimeout(() => {
+        document.querySelector("#loading").style.display = "none"
+    }, 1500);
+})
+ipcRenderer.on("loadingShow", (event, data) => {
+    document.querySelector("#loading").style.display = "flex"
+})
