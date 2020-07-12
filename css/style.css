@@ -98,12 +98,13 @@ header .buttons button#close:hover {
 }
 
 #loading {
-    z-index: 10;
+    margin-top: 2rem;
+    z-index: 20;
     position: absolute;
     background: rgba(0, 0, 0, 0.9);
     width: 100%;
     height: 100%;
-    display: flex;
+    display: none;
     align-items: center;
     justify-content: center;
 }

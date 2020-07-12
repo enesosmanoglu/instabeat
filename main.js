@@ -51,46 +51,10 @@ function createWindow() {
     //win.webContents.openDevTools()
 
     win.loadFile('index.html')
-    downloadFile(packageUrl, "./package_last.json", async (err) => {
-        try {
-            if (err) {
-                win.webContents.send('loadingInfo', "Güncelleme kontrol edilemedi!")
-                win.webContents.send('loadingHide')
-                return console.log(err)
-            }
-            console.log('checking update...')
-            let package = JSON.parse(fs.readFileSync('./package.json', { encoding: 'utf8' }));
-            let updatePackage = JSON.parse(fs.readFileSync('./package_last.json', { encoding: 'utf8' }));
 
-            let version = package.version.split('.');
-            let updateVersion = updatePackage.version.split('.');
-
-            try {
-                fs.unlinkSync("./package_last.json");
-            } catch (error) {
-
-            }
-
-            if (updateVersion[0] > version[0]) {
-                return updateApp();
-            } else {
-                if (updateVersion[1] > version[1]) {
-                    return updateApp();
-                } else {
-                    if (updateVersion[2] > version[2]) {
-                        return updateApp();
-                    } else {
-                        win.webContents.send('loadingInfo', "Güncelleme bulunamadı!")
-                        console.log("Güncelleme bulunamadı!", version, updateVersion)
-                    }
-                }
-            }
-        } catch (error) {
-            win.webContents.send('loadingInfo', "Güncelleme kontrol sırasında hata oldu!")
-        }
-
-        win.webContents.send('loadingHide')
-    }, false);
+    win.webContents.once("dom-ready", (event) => {
+        updateApp();
+    })
 
     win.webContents.on("dom-ready", (event) => {
         let lastNo = "0";
@@ -134,7 +98,7 @@ function createWindow() {
 
 }
 
-function downloadFile(url, dest, cb, showAlert = true) {
+function downloadFile(url, dest, cb, showAlert = false) {
     let file = fs.createWriteStream(dest);
     let request = (url) => {
         https.get(url, function (response) {
@@ -192,19 +156,62 @@ function downloadFile(url, dest, cb, showAlert = true) {
     request(url);
 };
 async function updateApp() {
-    downloadFile(updateUrl, "./update.zip", async (err) => {
-        if (err) return console.log(err)
-        await fs.createReadStream("./update.zip")
-            .pipe(unzipper.Extract({ path: './' }))
-            .on('error', console.log)
-            .on('finish', () => {
-                console.log('finished')
-                fs.unlinkSync("./update.zip");
-                app.relaunch()
-                app.exit()
-            })
-            .promise()
-    })
+    win.webContents.send('loadingShow')
+    downloadFile(packageUrl, "./package_last.json", async (err) => {
+        try {
+            if (err) {
+                win.webContents.send('loadingInfo', "Güncelleme kontrol edilemedi!")
+                win.webContents.send('loadingHide')
+                return console.log(err)
+            }
+            console.log('checking update...')
+            let package = JSON.parse(fs.readFileSync('./package.json', { encoding: 'utf8' }));
+            let updatePackage = JSON.parse(fs.readFileSync('./package_last.json', { encoding: 'utf8' }));
+
+            let version = package.version.split('.');
+            let updateVersion = updatePackage.version.split('.');
+
+            try {
+                fs.unlinkSync("./package_last.json");
+            } catch (error) {
+
+            }
+
+            if (updateVersion[0] > version[0]) {
+                return startUpdate();
+            } else {
+                if (updateVersion[1] > version[1]) {
+                    return startUpdate();
+                } else {
+                    if (updateVersion[2] > version[2]) {
+                        return startUpdate();
+                    } else {
+                        win.webContents.send('loadingInfo', "Güncelleme bulunamadı!")
+                        console.log("Güncelleme bulunamadı!", version, updateVersion)
+                    }
+                }
+            }
+        } catch (error) {
+            win.webContents.send('loadingInfo', "Güncelleme kontrol sırasında hata oldu!")
+        }
+
+        win.webContents.send('loadingHide')
+    });
+    async function startUpdate() {
+        downloadFile(updateUrl, "./update.zip", async (err) => {
+            if (err) return console.log(err)
+            await fs.createReadStream("./update.zip")
+                .pipe(unzipper.Extract({ path: './' }))
+                .on('error', console.log)
+                .on('finish', () => {
+                    console.log('finished')
+                    fs.unlinkSync("./update.zip");
+                    app.relaunch()
+                    app.exit()
+                })
+                .promise()
+        })
+    }
 }
 
 // This method will be called when Electron has finished
