@@ -327,11 +327,43 @@ ipcMain.on('submitForm', async function (event, data) {
     if (!fs.existsSync("./out/" + data.beat_no + "/")) {
         fs.mkdirSync("./out/" + data.beat_no + "/")
     } else {
-        let ask = dialog.showMessageBoxSync(win, { type: "warning", buttons: ["Evet", "Hayır"], title: "Dikkat", message: "Daha önceden bu numaraya ait oluşturma yapılmış.", detail: "Üzerine yazılmasını kabul ediyor musun?" });
-        if (ask) {
+        let ask = dialog.showMessageBoxSync(win, { type: "warning", buttons: ["Evet", "Hayır", "Eskisini paylaş"], title: "Dikkat", message: "Daha önceden bu numaraya ait oluşturma yapılmış.", detail: "Üzerine yazılmasını kabul ediyor musun?\n\n(Ya da en son oluşturulan videoyu tekrar paylaşabilirsin)" });
+        if (ask == 1) {
             win.webContents.executeJavaScript(`document.querySelector("#send").toggleAttribute("hidden")`);
             win.webContents.executeJavaScript(`document.querySelector("#cancel").toggleAttribute("hidden")`);
             return sendAlert("İptal edildi.", "red")
+        } else if (ask == 2) {
+            sendAlert("Eski video Instagram'a yükleniyor... => " + auth.IG_USERNAME, "green");
+            console.log("Video is uploading to Instagram => " + auth.IG_USERNAME);
+
+            const videoPath = "./out/" + data.beat_no + "/video." + videoOptions.format;
+            const coverPath = "./out/" + data.beat_no + "/img.jpg";
+            const publishResult = await ig.publish.video({
+                // read the file into a Buffer
+                video: await readFileAsync(videoPath),
+                coverImage: await readFileAsync(coverPath),
+                caption: data.caption
+                /*
+                  this does also support:
+                  caption (string),  ----+
+                  usertags,          ----+----> See upload-photo.example.ts
+                  location,          ----+
+                 */
+            }).catch(err => {
+                console.error(err)
+                sendAlert("HATA: " + err.message, "red")
+            });
+
+            //console.log(publishResult);
+
+            if (publishResult && publishResult.status == "ok") {
+                sendAlert(`<a target="_blank" href="https://www.instagram.com/p/${publishResult.media.code}/">Video paylaşıldı.</a>`, "green")
+                console.log("Video başarıyla paylaşıldı. URL: " + `https://www.instagram.com/p/${publishResult.media.code}/`)
+            }
+
+            win.webContents.executeJavaScript(`document.querySelector("#send").toggleAttribute("hidden")`);
+            win.webContents.executeJavaScript(`document.querySelector("#cancel").toggleAttribute("hidden")`);
+            return
         }
     }
 
@@ -410,16 +442,16 @@ ipcMain.on('submitForm', async function (event, data) {
                       usertags,          ----+----> See upload-photo.example.ts
                       location,          ----+
                      */
-                }).catch(err => console.error(err));
+                }).catch(err => {
+                    console.error(err)
+                    sendAlert("HATA: " + err.message, "red")
+                });
 
                 //console.log(publishResult);
 
                 if (publishResult && publishResult.status == "ok") {
                     sendAlert(`<a target="_blank" href="https://www.instagram.com/p/${publishResult.media.code}/">Video paylaşıldı.</a>`, "green")
                     console.log("Video başarıyla paylaşıldı. URL: " + `https://www.instagram.com/p/${publishResult.media.code}/`)
-                } else {
-                    sendAlert("Video paylaşımında bir hata var: " + publishResult, "red")
-                    console.error("Video paylaşımında bir hata var: ", publishResult)
                 }
 
                 win.webContents.executeJavaScript(`document.querySelector("#send").toggleAttribute("hidden")`);

@@ -1,4 +1,9 @@
 release-builds
+out
+auth.js
+last.png
+lastCaption.txt
+lastNo.txt
 
 # Logs
 logs
